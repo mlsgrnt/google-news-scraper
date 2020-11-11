@@ -1,6 +1,15 @@
 const googleNewsScraper = require('./index.js');
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
+const parser = require('horseman-article-parser');
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const csvWriter = createCsvWriter({
+  path: 'out.csv',
+  header: [
+    { id: 'story', title: 'story' },
+    { id: 'content', title: 'content' },
+  ],
+});
 
 // Scrape story IDs from google news homepage
 
@@ -12,7 +21,7 @@ const grabStoryIds = async () => {
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
   );
   page.setRequestInterception(true);
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (!request.isNavigationRequest()) {
       request.continue();
       return;
@@ -27,7 +36,7 @@ const grabStoryIds = async () => {
     request.continue({ headers });
   });
   await page.goto('https://news.google.com/topstories', {
-    waitUntil: 'networkidle2'
+    waitUntil: 'networkidle2',
   });
 
   const content = await page.content();
@@ -35,7 +44,7 @@ const grabStoryIds = async () => {
   const fullCoverageLinks = $('c-wiz .FKF6mc'); //uh oh very brittle
 
   let results = [];
-  $(fullCoverageLinks).each(function() {
+  $(fullCoverageLinks).each(function () {
     results.push(
       $(this)
         .attr('href')
@@ -45,22 +54,34 @@ const grabStoryIds = async () => {
   return results;
 };
 
-const grabStoryLinks = async storyId => {
+const grabStoryLinks = async (storyId) => {
   const articles = await googleNewsScraper({
-    storyId: storyId
+    storyId: storyId,
   });
   return articles;
 };
 const run = async () => {
+  console.log('grabbing story ids');
   const storyIds = await grabStoryIds();
+  console.log('Grabbed story ids grabbing links');
   const links = {};
 
   for (let i = 0; i < storyIds.length; i++) {
     const storyLinks = await grabStoryLinks(storyIds[i]);
     links[storyIds[i]] = storyLinks;
+    for (link in storyLinks) {
+      await csvWriter.writeRecords([
+        {
+          story: storyIds[i],
+          content: storyLinks[link].title,
+        },
+      ]);
+
+      // const article = await parser.parseArticle({url: storyLinks[link].link})
+      // console.log(article.processed.text.formatted)
+    }
+    console.log('DONE');
   }
-  console.log(links);
-  // Next up: feed each link into article parser and add post content into the object for that post, then stuff it all
-  // in a csv
+  console.log('Finished all stories');
 };
 run();

@@ -24,7 +24,10 @@
   "author": "Lewis Donovan",
   "license": "MIT",
   "dependencies": {
+    "article-parser": "^4.2.5",
     "cheerio": "^1.0.0-rc.3",
+    "csv-writer": "^1.6.0",
+    "horseman-article-parser": "^0.8.51",
     "node-fetch": "^2.6.0",
     "puppeteer": "^3.2.0"
   }
